@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Cosmo Raider — Handheld</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --w: min(92vw, 400px, 49vh); }
+  @supports (height: 1dvh) { :root { --w: min(92vw, 400px, 49dvh); } }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(circle at 50% 30%, #e4e4e4, #b7b7b7);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', system-ui, sans-serif;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    touch-action: manipulation; overflow: hidden;
+  }
+  .device {
+    width: var(--w); font-size: calc(var(--w) / 25);
+    background: linear-gradient(90deg, #141414, #2a2a2a 10%, #252525 90%, #111);
+    border-radius: 3em 3em 3.6em 3.6em;
+    padding: 1.1em 1.3em 1.2em;
+    box-shadow: inset 0 .15em .2em rgba(255,255,255,.12), inset 0 -.3em .5em rgba(0,0,0,.6),
+                0 1.2em 2em rgba(0,0,0,.35), 0 .2em .4em rgba(0,0,0,.3);
+    position: relative;
+  }
+  .plate {
+    background: #050505; border-radius: .4em; padding: .5em 0 .45em; text-align: center;
+    margin: 0 1.4em 1em; box-shadow: inset 0 .1em .3em #000, 0 .06em 0 rgba(255,255,255,.08);
+  }
+  .plate span { font-family: 'Archivo Black', sans-serif; color: #eee; font-size: 1.3em; letter-spacing: .03em; }
+  .bezel {
+    background: #0c0c0c; border-radius: 1.4em; padding: .8em;
+    box-shadow: inset 0 .2em .4em rgba(0,0,0,.9), 0 .08em 0 rgba(255,255,255,.07);
+  }
+  .glass { background: #000; border-radius: .9em; position: relative; overflow: hidden; padding: .7em .5em .3em; }
+  .glass::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(155deg, rgba(255,255,255,.08), rgba(255,255,255,0) 32%);
+  }
+  .scorebar { display: flex; align-items: center; justify-content: center; gap: .45em; margin-bottom: .2em; }
+  .lbl { color: #ddd; font-weight: 700; font-size: .85em; letter-spacing: .04em; min-width: 2.9em; text-align: right; }
+  #score { width: 5.4em; height: 2.3em; border: .12em solid #bdbdbd; background: #13040e; display: block; }
+  .ships { display: flex; gap: .25em; margin-left: .3em; }
+  .ship { width: .9em; height: .4em; background: rgba(255,50,40,.12); border-radius: .1em; }
+  .ship.on { background: #ff2b1f; box-shadow: 0 0 .35em rgba(255,40,20,.9); }
+  canvas#screen { display: block; width: 100%; aspect-ratio: 280 / 306; }
+
+  .controls { position: relative; height: 12em; margin-top: 1em; }
+  .well {
+    position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+    width: 13em; height: 6.3em; background: #1b1b1b; border-radius: .4em;
+    box-shadow: inset 0 .1em .3em rgba(0,0,0,.85), 0 .06em 0 rgba(255,255,255,.08);
+  }
+  .emb {
+    position: absolute; top: .35em; left: 0; right: 0; text-align: center;
+    color: #343434; text-shadow: 0 .06em 0 rgba(255,255,255,.07);
+    font-size: .68em; letter-spacing: .22em; font-weight: 700;
+  }
+  .key {
+    position: absolute; top: 1.9em; width: 3.6em; height: 3.6em; border: none; padding: 0;
+    background: linear-gradient(#ffe350, #f1c200); border-radius: .25em; cursor: pointer;
+    box-shadow: 0 .25em 0 #9c7700, 0 .4em .45em rgba(0,0,0,.6), inset 0 .1em 0 rgba(255,255,255,.5);
+    display: grid; place-items: center; touch-action: none;
+  }
+  .key svg { width: 55%; height: 55%; }
+  .key.left { left: 1.9em; } .key.right { right: 1.9em; }
+  .key.down, .firebtn.down { transform: translateY(.2em); box-shadow: 0 .05em 0 #9c7700, 0 .1em .2em rgba(0,0,0,.6); }
+
+  .switch { position: absolute; top: 1em; display: flex; flex-direction: column; align-items: center; gap: .2em; cursor: pointer; touch-action: none; }
+  .switch.l { left: .1em; } .switch.r { right: .1em; }
+  .switch .t { color: #e8e8e8; font-weight: 700; font-size: .78em; line-height: 1; }
+  .slot {
+    width: 1.25em; height: 2.6em; background: #050505; border-radius: .15em; position: relative;
+    box-shadow: inset 0 .08em .2em #000, 0 .05em 0 rgba(255,255,255,.1);
+  }
+  .knob {
+    position: absolute; left: .15em; right: .15em; height: 1.15em; top: .15em; transition: top .12s;
+    background: repeating-linear-gradient(#ff3b2e 0 .14em, #b5150d .14em .24em); border-radius: .08em;
+  }
+  .switch.on .knob { top: 1.3em; }
+  .switch.r .knob { top: 1.3em; } .switch.r.on .knob { top: .15em; }
+  .switch.pulse .slot { animation: pulse 1.4s infinite; }
+
+  .firewrap {
+    position: absolute; left: 0; bottom: 0; width: 5em; height: 5em; border-radius: 50%;
+    background: #0a0a0a; display: grid; place-items: center;
+    box-shadow: inset 0 .15em .3em #000, 0 .06em 0 rgba(255,255,255,.1);
+  }
+  .firebtn {
+    width: 3.5em; height: 3.5em; border: none; border-radius: .7em; cursor: pointer; touch-action: none;
+    background: linear-gradient(#ffe350, #f1c200);
+    box-shadow: 0 .25em 0 #9c7700, 0 .4em .45em rgba(0,0,0,.6), inset 0 .1em 0 rgba(255,255,255,.5);
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 700; color: #111; font-size: 1.05em; letter-spacing: .02em;
+  }
+  .firewrap.pulse { animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,220,60,0); } 50% { box-shadow: 0 0 0 .35em rgba(255,220,60,.35); } }
+
+  .snd {
+    position: absolute; right: .2em; bottom: .6em; display: flex; align-items: center; gap: .35em;
+    background: none; border: none; color: #8a8a8a; font-family: inherit; font-weight: 700; font-size: .75em;
+    letter-spacing: .12em; cursor: pointer; padding: .4em;
+  }
+  .snd i { width: .7em; height: .7em; border-radius: 50%; background: #3a0b08; display: inline-block; }
+  .snd.on i { background: #ff2b1f; box-shadow: 0 0 .4em rgba(255,40,20,.9); }
+  .model { position: absolute; right: .5em; bottom: 2.6em; color: #3a3a3a; font-size: .65em; letter-spacing: .2em; font-weight: 700; text-shadow: 0 .06em 0 rgba(255,255,255,.06); }
+
+  .fs {
+    position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
+    width: 40px; height: 40px; border-radius: 10px; border: none; cursor: pointer;
+    background: rgba(0,0,0,.12); display: grid; place-items: center; z-index: 5;
+  }
+  .fs:hover { background: rgba(0,0,0,.2); }
+  .fs svg { width: 22px; height: 22px; }
+  .fs .shrink { display: none; }
+  body.big .fs .grow { display: none; } body.big .fs .shrink { display: block; }
+  body.big { --w: min(98vw, 53vh); background: radial-gradient(circle at 50% 30%, #3a3a3a, #111); }
+  @supports (height: 1dvh) { body.big { --w: min(98vw, 53dvh); } }
+  body.big .hint { display: none; }
+  body.big .fs { background: rgba(255,255,255,.1); }
+  body.big .fs svg path { stroke: #ddd; }
+
+  .hint { margin-top: 14px; color: #555; font-size: 13px; text-align: center; letter-spacing: .02em; }
+  .hint b { color: #333; }
+  @media (hover: none) { .hint { display: none; } }
+</style>
+</head>
+<body>
+<button class="fs" id="fsBtn" aria-label="Toggle full screen" title="Full screen (F)">
+  <svg class="grow" viewBox="0 0 24 24" fill="none"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <svg class="shrink" viewBox="0 0 24 24" fill="none"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
+<div class="device">
+  <div class="plate"><span>★COSMO RAIDER★</span></div>
+  <div class="bezel">
+    <div class="glass">
+      <div class="scorebar">
+        <span class="lbl" id="scoreLbl">SCORE</span>
+        <canvas id="score" width="216" height="92"></canvas>
+        <div class="ships"><span class="ship"></span><span class="ship"></span><span class="ship"></span></div>
+      </div>
+      <canvas id="screen"></canvas>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="switch l" id="proSw" role="switch" aria-label="Difficulty: PRO or AM" aria-checked="false">
+      <span class="t">PRO</span><div class="slot"><div class="knob"></div></div><span class="t">AM</span>
+    </div>
+    <div class="well">
+      <div class="emb">PHOTON CANNON CONTROL</div>
+      <button class="key left" id="btnL" aria-label="Move left">
+        <svg viewBox="0 0 24 24"><path d="M19 3 L4 12 L19 21 Z" fill="none" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="key right" id="btnR" aria-label="Move right">
+        <svg viewBox="0 0 24 24"><path d="M5 3 L20 12 L5 21 Z" fill="none" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <div class="switch r pulse" id="pwrSw" role="switch" aria-label="Power" aria-checked="false">
+      <span class="t">ON</span><div class="slot"><div class="knob"></div></div><span class="t">OFF</span>
+    </div>
+    <div class="firewrap" id="fireWrap"><button class="firebtn" id="btnF">FIRE</button></div>
+    <div class="model">MODEL CR-79</div>
+    <button class="snd on" id="sndBtn" aria-label="Toggle sound"><i></i>SOUND</button>
+  </div>
+</div>
+<div class="hint"><b>←&nbsp;→</b> move &nbsp;·&nbsp; <b>Space</b> fire &nbsp;·&nbsp; <b>O</b> on/off &nbsp;·&nbsp; <b>P</b> pro/am &nbsp;·&nbsp; <b>M</b> sound &nbsp;·&nbsp; <b>F</b> full screen</div>
+
+<script>
+(() => {
+  // ---------- Grid & look ----------
+  const COLS = 7, ROWS = 9, CW = 40, CH = 34, W = COLS * CW, H = ROWS * CH;
+  const SHIELD_ROW = 7, PLAYER_ROW = 8, SHIELD_COLS = [1, 3, 5];
+  const RED = '#ff2b1f', GLOW = 'rgba(255,45,20,0.95)';
+
+  const cv = document.getElementById('screen'), ctx = cv.getContext('2d');
+  const sc = document.getElementById('score'), sctx = sc.getContext('2d');
+  const scoreLbl = document.getElementById('scoreLbl');
+  const shipEls = [...document.querySelectorAll('.ship')];
+  const fireWrap = document.getElementById('fireWrap');
+
+  function resize() {
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize(); addEventListener('resize', resize);
+
+  // ---------- Sprites (original designs) ----------
+  const ALIEN = [[
+    "...XXXXX...",
+    ".XXXXXXXXX.",
+    "XX..XXX..XX",
+    "XXXXXXXXXXX",
+    ".X.X...X.X.",
+    "X...X.X...X",
+  ], [
+    "...XXXXX...",
+    ".XXXXXXXXX.",
+    "XX..XXX..XX",
+    "XXXXXXXXXXX",
+    "..X.X.X.X..",
+    ".X..X.X..X.",
+  ]];
+  const PLAYER = [
+    ".....X.....",
+    "....XXX....",
+    ".XXXXXXXXX.",
+    "XXXXXXXXXXX",
+    "XXXXXXXXXXX",
+  ];
+  const UFO = [
+    "...XXXXX...",
+    ".XX.X.X.XX.",
+    "XXXXXXXXXXX",
+    "..X.....X..",
+  ];
+  const BOOM = [
+    "X...X...X",
+    ".X..X..X.",
+    "..X...X..",
+    "XX.....XX",
+    "..X...X..",
+    ".X..X..X.",
+    "X...X...X",
+  ];
+
+  const cx = c => c * CW + CW / 2, cy = r => r * CH + CH / 2;
+
+  function sprite(sp, x, y, px) {
+    const h = sp.length, w = sp[0].length, x0 = x - w * px / 2, y0 = y - h * px / 2;
+    ctx.beginPath();
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++)
+      if (sp[j][i] !== '.') ctx.rect(x0 + i * px, y0 + j * px, px + .05, px + .05);
+    ctx.fill();
+  }
+  function shield(c, hp) {
+    const x = cx(c) - 15, y = cy(SHIELD_ROW) - 2.5;
+    for (let i = 0; i < 3; i++) if (i < hp) ctx.fillRect(x + i * 10.5, y, 9, 5);
+  }
+  function shot(c, r) {
+    const x = cx(c), y = cy(r);
+    ctx.fillRect(x - 1.2, y - 8, 2.4, 14);
+    ctx.fillRect(x - 4, y + 5, 8, 2.4);
+  }
+  function bomb(c, r) {
+    const x = cx(c), y = cy(r);
+    ctx.beginPath();
+    ctx.moveTo(x, y - 9); ctx.lineTo(x + 3.5, y - 4.5); ctx.lineTo(x - 3.5, y + 0.5);
+    ctx.lineTo(x + 3.5, y + 5); ctx.lineTo(x, y + 9);
+    ctx.lineWidth = 2.2; ctx.lineJoin = 'miter'; ctx.stroke();
+  }
+
+  // ---------- Sound ----------
+  let AC = null, sound = true;
+  function ensureAudio() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+    if (AC && AC.state === 'suspended') AC.resume().catch(() => {});
+  }
+  function tone(f, d, o = {}) {
+    if (!sound || !AC) return;
+    const { type = 'square', vol = .05, slide = 0, delay = 0 } = o;
+    const t = AC.currentTime + delay, osc = AC.createOscillator(), g = AC.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(f, t);
+    if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(30, f * slide), t + d);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    osc.connect(g).connect(AC.destination); osc.start(t); osc.stop(t + d + .03);
+  }
+  function noise(d, vol = .12, freq = 900) {
+    if (!sound || !AC) return;
+    const n = Math.floor(AC.sampleRate * d), buf = AC.createBuffer(1, n, AC.sampleRate), data = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = .8; g.gain.value = vol;
+    src.buffer = buf; src.connect(f).connect(g).connect(AC.destination); src.start();
+  }
+  const MARCH = [110, 98, 87, 82];
+  const SFX = {
+    march: i => tone(MARCH[i], .09, { vol: .07 }),
+    shoot: () => tone(1500, .13, { slide: .3, vol: .035 }),
+    hit: () => { noise(.16, .14, 1200); tone(320, .12, { slide: .3, vol: .04 }); },
+    clash: () => tone(950, .06, { vol: .035 }),
+    shield: () => { noise(.08, .08, 500); },
+    ufo: c => tone(c % 2 ? 1250 : 1050, .1, { type: 'triangle', vol: .03 }),
+    ufohit: () => { for (let i = 0; i < 6; i++) tone(600 + i * 180, .07, { delay: i * .06, vol: .04 }); },
+    die: () => { noise(.7, .16, 400); tone(420, .9, { slide: .12, type: 'sawtooth', vol: .045 }); },
+    wave: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .12, { delay: i * .1, vol: .04 })),
+    start: () => [262, 330, 392, 523, 392, 523].forEach((f, i) => tone(f, .09, { delay: i * .08, vol: .04 })),
+    over: () => [392, 330, 262, 196].forEach((f, i) => tone(f, .22, { delay: i * .2, vol: .05 })),
+    step: () => tone(2200, .015, { vol: .012 }),
+    off: () => tone(500, .25, { slide: .2, type: 'sine', vol: .05 }),
+  };
+
+  // ---------- State ----------
+  let power = false, pro = false, G = null, hi = 0;
+  try { hi = +localStorage.getItem('cosmoRaiderHi') || 0; } catch (e) {}
+
+  function newGame() {
+    G = { score: 0, lives: 3, wave: 0, mode: 'play', modeT: 0, player: 3, shot: null, bombs: [], ufo: null, booms: [] };
+    startWave();
+  }
+  function startWave() {
+    const rows = G.wave === 0 ? 2 : 3;
+    G.aliens = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < 4; c++) G.aliens.push({ dc: c, dr: r, alive: true });
+    G.total = G.aliens.length;
+    G.fx = 1; G.fy = 1; G.dir = 1; G.march = 0;
+    G.timers = { form: -600, shot: 0, bomb: 0, ufo: 0 };
+    G.bombs = []; G.shot = null; G.ufo = null; G.shields = [3, 3, 3];
+  }
+  const alive = () => G.aliens.filter(a => a.alive);
+  const alienAt = (c, r) => G.aliens.find(a => a.alive && G.fx + a.dc === c && G.fy + a.dr === r);
+  const boom = (c, r, t = 220) => G.booms.push({ c, r, t });
+  const addScore = n => { G.score = Math.min(999, G.score + n); };
+
+  function formInterval() {
+    const base = (pro ? 640 : 900) * Math.pow(0.9, Math.min(G.wave, 6));
+    return base * (0.35 + 0.65 * alive().length / G.total);
+  }
+
+  function checkShot() {
+    const s = G.shot; if (!s) return;
+    const bi = G.bombs.findIndex(b => b.c === s.c && b.r === s.r);
+    if (bi >= 0) { G.bombs.splice(bi, 1); G.shot = null; boom(s.c, s.r, 150); SFX.clash(); return; }
+    if (s.r === 0 && G.ufo && G.ufo.c === s.c) {
+      addScore(pro ? 10 : 5); boom(s.c, 0, 400); G.ufo = null; G.shot = null; SFX.ufohit(); return;
+    }
+    const a = alienAt(s.c, s.r);
+    if (a) {
+      a.alive = false; addScore(pro ? 2 : 1); boom(s.c, s.r); G.shot = null; SFX.hit();
+      if (!alive().length) { G.mode = 'wave'; G.modeT = 1500; G.ufo = null; G.bombs = []; setTimeout(SFX.wave, 200); }
+    }
+  }
+  function moveShot() { G.shot.r--; if (G.shot.r < 0) G.shot = null; else checkShot(); }
+
+  // returns false if bomb is used up
+  function bombCheck(b) {
+    if (G.shot && G.shot.c === b.c && G.shot.r === b.r) { G.shot = null; boom(b.c, b.r, 150); SFX.clash(); return false; }
+    if (b.r === SHIELD_ROW) {
+      const i = SHIELD_COLS.indexOf(b.c);
+      if (i >= 0 && G.shields[i] > 0) { G.shields[i]--; SFX.shield(); return false; }
+    }
+    if (b.r === PLAYER_ROW && b.c === G.player) { killPlayer(); return false; }
+    return b.r <= PLAYER_ROW;
+  }
+  function moveBombs() {
+    const keep = [];
+    for (const b of G.bombs) { b.r++; if (bombCheck(b)) keep.push(b); if (G.mode !== 'play') return; }
+    G.bombs = keep;
+  }
+  function killPlayer() {
+    G.mode = 'dying'; G.modeT = 1400; G.bombs = []; G.shot = null;
+    boom(G.player, PLAYER_ROW, 1400); SFX.die();
+  }
+  function moveUfo() {
+    G.ufo.c += G.ufo.dir; G.ufo.n++;
+    if (G.ufo.c < 0 || G.ufo.c >= COLS) { G.ufo = null; return; }
+    SFX.ufo(G.ufo.n); checkShot();
+  }
+  function stepFormation() {
+    const live = alive(); if (!live.length) return;
+    let minC = 99, maxC = -1;
+    for (const a of live) { const c = G.fx + a.dc; minC = Math.min(minC, c); maxC = Math.max(maxC, c); }
+    if (maxC + G.dir > COLS - 1 || minC + G.dir < 0) { G.fy++; G.dir = -G.dir; } else G.fx += G.dir;
+    SFX.march(G.march); G.march = (G.march + 1) % 4;
+
+    let maxR = 0;
+    for (const a of live) {
+      const c = G.fx + a.dc, r = G.fy + a.dr; maxR = Math.max(maxR, r);
+      if (r === SHIELD_ROW) { const i = SHIELD_COLS.indexOf(c); if (i >= 0) G.shields[i] = 0; }
+    }
+    if (maxR >= PLAYER_ROW) { G.lives = 1; killPlayer(); return; } // invaded!
+    checkShot();
+    if (G.mode !== 'play') return;
+
+    // enemy fire from the lowest alien in a random column
+    const maxBombs = pro ? 3 : 2, chance = pro ? .6 : .38;
+    if (G.bombs.length < maxBombs && Math.random() < chance) {
+      const cols = {};
+      for (const a of live) { const c = G.fx + a.dc, r = G.fy + a.dr; if (!(c in cols) || r > cols[c]) cols[c] = r; }
+      const keys = Object.keys(cols), c = +keys[Math.floor(Math.random() * keys.length)];
+      const b = { c, r: cols[c] + 1 };
+      if (bombCheck(b)) G.bombs.push(b);
+    }
+    if (!G.ufo && G.mode === 'play' && Math.random() < .07) {
+      const fromLeft = Math.random() < .5;
+      G.ufo = { c: fromLeft ? -1 : COLS, dir: fromLeft ? 1 : -1, n: 0 }; G.timers.ufo = 0;
+    }
+  }
+  function gameOver() {
+    G.mode = 'over'; G.modeT = 0;
+    if (G.score > hi) { hi = G.score; try { localStorage.setItem('cosmoRaiderHi', hi); } catch (e) {} }
+    SFX.over();
+  }
+
+  function update(dt) {
+    if (!power || !G) return;
+    G.booms = G.booms.filter(b => (b.t -= dt) > 0);
+    if (G.mode === 'dying') {
+      G.modeT -= dt;
+      if (G.modeT <= 0) { G.lives--; if (G.lives <= 0) gameOver(); else { G.mode = 'play'; G.timers.form = -400; } }
+      return;
+    }
+    if (G.mode === 'wave') { G.modeT -= dt; if (G.modeT <= 0) { G.wave++; startWave(); G.mode = 'play'; } return; }
+    if (G.mode === 'over') { G.modeT += dt; return; }
+
+    const T = G.timers;
+    if (G.shot) { T.shot += dt; while (G.shot && T.shot >= 55) { T.shot -= 55; moveShot(); } }
+    if (G.mode !== 'play') return;
+    const bi = pro ? 150 : 210;
+    T.bomb += dt; while (T.bomb >= bi) { T.bomb -= bi; moveBombs(); if (G.mode !== 'play') return; }
+    if (G.ufo) { T.ufo += dt; while (G.ufo && T.ufo >= 260) { T.ufo -= 260; moveUfo(); } }
+    if (G.mode !== 'play') return;
+    T.form += dt; if (T.form >= formInterval()) { T.form = 0; stepFormation(); }
+  }
+
+  // ---------- Actions ----------
+  function move(d) {
+    if (!power || !G || G.mode !== 'play') return;
+    const n = G.player + d; if (n < 0 || n >= COLS) return;
+    G.player = n; SFX.step();
+  }
+  function fire() {
+    if (!power || !G) return;
+    if (G.mode === 'over') { if (G.modeT > 800) { newGame(); SFX.start(); } return; }
+    if (G.mode !== 'play' || G.shot) return;
+    G.shot = { c: G.player, r: PLAYER_ROW - 1 }; G.timers.shot = 0; SFX.shoot(); checkShot();
+  }
+  const pwrSw = document.getElementById('pwrSw'), proSw = document.getElementById('proSw'), sndBtn = document.getElementById('sndBtn');
+  function togglePower() {
+    power = !power;
+    pwrSw.classList.toggle('on', power); pwrSw.classList.remove('pulse'); pwrSw.setAttribute('aria-checked', power);
+    if (power) { newGame(); SFX.start(); } else { G = null; SFX.off(); }
+  }
+  function togglePro() {
+    pro = !pro; proSw.classList.toggle('on', !pro); proSw.setAttribute('aria-checked', pro);
+  }
+  proSw.classList.add('on'); // knob down = AM
+  function toggleSound() { sound = !sound; sndBtn.classList.toggle('on', sound); }
+
+  // ---------- Input ----------
+  function hold(el, fn, repeat) {
+    let iv = null;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault(); ensureAudio(); el.classList.add('down'); fn();
+      if (repeat) { clearInterval(iv); iv = setInterval(fn, repeat); }
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    const up = () => { el.classList.remove('down'); clearInterval(iv); iv = null; };
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => el.addEventListener(t, up));
+    el.addEventListener('contextmenu', e => e.preventDefault());
+  }
+  hold(document.getElementById('btnL'), () => move(-1), 170);
+  hold(document.getElementById('btnR'), () => move(1), 170);
+  hold(document.getElementById('btnF'), fire, 0);
+  hold(pwrSw, togglePower, 0);
+  hold(proSw, togglePro, 0);
+  sndBtn.addEventListener('click', () => { ensureAudio(); toggleSound(); });
+
+  const keyIv = {};
+  addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if ([' ', 'arrowleft', 'arrowright', 'arrowup'].includes(k)) e.preventDefault();
+    if (e.repeat) return;
+    ensureAudio();
+    const dir = (k === 'arrowleft' || k === 'a') ? -1 : (k === 'arrowright' || k === 'd') ? 1 : 0;
+    if (dir) { move(dir); clearInterval(keyIv[k]); keyIv[k] = setInterval(() => move(dir), 170); }
+    else if (k === ' ' || k === 'arrowup' || k === 'w') fire();
+    else if (k === 'o') togglePower();
+    else if (k === 'p') togglePro();
+    else if (k === 'm') toggleSound();
+    else if (k === 'f') toggleFullscreen();
+  });
+
+  // ---------- Full screen ----------
+  // Uses the real Fullscreen API where allowed; otherwise (e.g. iPhone Safari,
+  // or a frame that refuses it) falls back to an enlarged "big" layout.
+  const fsBtn = document.getElementById('fsBtn');
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+  let pseudo = false;
+  function syncBig() { document.body.classList.toggle('big', !!fsEl() || pseudo); }
+  async function toggleFullscreen() {
+    if (fsEl()) {
+      try { await (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {}
+      pseudo = false; syncBig(); return;
+    }
+    if (pseudo) { pseudo = false; syncBig(); return; }
+    const root = document.documentElement, req = root.requestFullscreen || root.webkitRequestFullscreen;
+    try {
+      if (!req) throw 0;
+      await req.call(root, { navigationUI: 'hide' });
+      try { await screen.orientation.lock('portrait'); } catch (e) {}
+    } catch (e) { pseudo = true; }
+    syncBig();
+  }
+  fsBtn.addEventListener('click', () => { ensureAudio(); toggleFullscreen(); });
+  document.addEventListener('fullscreenchange', syncBig);
+  document.addEventListener('webkitfullscreenchange', syncBig);
+  addEventListener('keyup', e => { const k = e.key.toLowerCase(); clearInterval(keyIv[k]); delete keyIv[k]; });
+  addEventListener('blur', () => { for (const k in keyIv) clearInterval(keyIv[k]); });
+
+  // ---------- 7-segment score ----------
+  const SEGS = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+  function hseg(x, y, L, t) {
+    sctx.beginPath(); sctx.moveTo(x, y); sctx.lineTo(x + t / 2, y - t / 2); sctx.lineTo(x + L - t / 2, y - t / 2);
+    sctx.lineTo(x + L, y); sctx.lineTo(x + L - t / 2, y + t / 2); sctx.lineTo(x + t / 2, y + t / 2); sctx.closePath(); sctx.fill();
+  }
+  function vseg(x, y, L, t) {
+    sctx.beginPath(); sctx.moveTo(x, y); sctx.lineTo(x + t / 2, y + t / 2); sctx.lineTo(x + t / 2, y + L - t / 2);
+    sctx.lineTo(x, y + L); sctx.lineTo(x - t / 2, y + L - t / 2); sctx.lineTo(x - t / 2, y + t / 2); sctx.closePath(); sctx.fill();
+  }
+  function digit(x, y, w, h, segs) {
+    const t = 9, g = 2.5, hh = h / 2;
+    const S = {
+      a: () => hseg(x + g, y, w - 2 * g, t), g: () => hseg(x + g, y + hh, w - 2 * g, t), d: () => hseg(x + g, y + h, w - 2 * g, t),
+      f: () => vseg(x, y + g, hh - 2 * g, t), b: () => vseg(x + w, y + g, hh - 2 * g, t),
+      e: () => vseg(x, y + hh + g, hh - 2 * g, t), c: () => vseg(x + w, y + hh + g, hh - 2 * g, t),
+    };
+    for (const s of segs) S[s]();
+  }
+  function drawScore(val) {
+    sctx.setTransform(1, 0, 0, 1, 0, 0);
+    sctx.fillStyle = '#13040e'; sctx.fillRect(0, 0, sc.width, sc.height);
+    sctx.setTransform(1, 0, -0.08, 1, 6, 0);
+    const xs = [26, 92, 158], y = 14, w = 40, h = 64;
+    sctx.shadowBlur = 0; sctx.fillStyle = 'rgba(150,40,120,0.28)';
+    xs.forEach(x => digit(x, y, w, h, SEGS[8]));
+    if (val == null) return;
+    const s = String(val);
+    sctx.fillStyle = '#ff2b1f'; sctx.shadowColor = GLOW; sctx.shadowBlur = 10;
+    for (let i = 0; i < s.length; i++) digit(xs[3 - s.length + i], y, w, h, SEGS[s[i]]);
+  }
+
+  // ---------- Render ----------
+  function render(now) {
+    ctx.shadowBlur = 0; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+    // ghost segments, as on a real VFD
+    const ga = power ? .05 : .025;
+    ctx.fillStyle = `rgba(255,50,40,${ga})`; ctx.strokeStyle = ctx.fillStyle;
+    for (let c = 0; c < COLS; c++) {
+      sprite(UFO, cx(c), cy(0), 2.2);
+      for (let r = 1; r <= 6; r++) sprite(ALIEN[0], cx(c), cy(r), 2.6);
+      sprite(PLAYER, cx(c), cy(PLAYER_ROW) + 3, 2.6);
+    }
+    SHIELD_COLS.forEach(c => shield(c, 3));
+
+    let scoreVal = null, label = 'SCORE', lives = 0;
+    if (power && G) {
+      lives = G.lives - (G.mode === 'dying' ? 1 : 0);
+      scoreVal = G.score;
+      ctx.fillStyle = RED; ctx.strokeStyle = RED; ctx.shadowColor = GLOW; ctx.shadowBlur = 9;
+      const blinkOff = (G.mode === 'wave') && Math.floor(now / 160) % 2;
+
+      const fr = G.march % 2;
+      for (const a of G.aliens) if (a.alive) sprite(ALIEN[fr], cx(G.fx + a.dc), cy(G.fy + a.dr), 2.6);
+      if (G.ufo && G.ufo.c >= 0 && G.ufo.c < COLS) sprite(UFO, cx(G.ufo.c), cy(0), 2.2);
+      if (!blinkOff) SHIELD_COLS.forEach((c, i) => shield(c, G.shields[i]));
+      if (G.shot) shot(G.shot.c, G.shot.r);
+      for (const b of G.bombs) bomb(b.c, b.r);
+      for (const b of G.booms) {
+        if (b.c === G.player && b.r === PLAYER_ROW && G.mode === 'dying' && Math.floor(now / 110) % 2) continue;
+        sprite(BOOM, cx(b.c), cy(b.r), 2.8);
+      }
+      if (G.mode !== 'dying' && !blinkOff && G.mode !== 'over') sprite(PLAYER, cx(G.player), cy(PLAYER_ROW) + 3, 2.6);
+      if (G.mode === 'over') {
+        if (Math.floor(now / 500) % 2) sprite(PLAYER, cx(G.player), cy(PLAYER_ROW) + 3, 2.6);
+        if (Math.floor(G.modeT / 1500) % 2) { label = 'HI'; scoreVal = hi; }
+      }
+      ctx.shadowBlur = 0;
+    }
+    drawScore(scoreVal);
+    scoreLbl.textContent = label;
+    shipEls.forEach((el, i) => el.classList.toggle('on', i < lives));
+    fireWrap.classList.toggle('pulse', !!(power && G && G.mode === 'over' && G.modeT > 800));
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(100, now - last); last = now;
+    update(dt); render(now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
